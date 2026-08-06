@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Federations — UI/UX Mockup — OpenFront.io mod</title>
+<style>
+  /* ============================================================
+     TOKENS
+     Pulled straight from the live app: src/client/styles.css
+     (--font-display, --color-*) and src/client/render/gl/default-theme.json
+     (team + per-player palette). The game ships one dark chrome only
+     (no light/dark toggle in UserSettingModal), so this mockup commits
+     to that same single dark "situation room" world rather than
+     bolting on a light theme the product itself doesn't have.
+     ============================================================ */
+  :root{
+    --void:#05080d;
+    --surface:#0a1628;           /* --color-surface */
+    --panel:rgba(24,24,27,.95);  /* zinc-900/95 */
+    --panel-2:rgba(31,41,55,.92);/* gray-800/92 */
+    --panel-3:rgba(17,24,28,.72);
+    --ring:rgba(255,255,255,.07);
+    --ring-strong:rgba(255,255,255,.14);
+    --hairline:rgba(255,255,255,.09);
+
+    --text:#f4f4f5;
+    --text-dim:#a1a1aa;
+    --text-faint:#71717a;
+
+    --accent:#0084d1;      /* malibu-blue */
+    --accent-2:#3fa9f5;    /* aquarius */
+
+    --sev-fail:#f87171;
+    --sev-warn:#facc15;
+    --sev-success:#4ade80;
+    --sev-info:#93c5fd;
+
+    /* federation identities — never reused as a player fill color below */
+    --fed-solidum:#c9852e;
+    --fed-solidum-soft:rgba(201,133,46,.16);
+    --fed-auroral:#a78bfa;
+    --fed-auroral-soft:rgba(167,139,250,.16);
+    --fed-ridgeline:#22d3ee;
+    --fed-ridgeline-soft:rgba(34,211,238,.16);
+
+    --ally-line:#64748b;
+
+    --font-display:-apple-system,"Segoe UI",Inter,Arial,sans-serif; /* mirrors "OpenFront",Inter,Arial,sans-serif with the same fallback the live app resolves to */
+    --font-mono:ui-monospace,"SF Mono","Cascadia Code","Roboto Mono",monospace;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--void);
+    background-image:
+      radial-gradient(1200px 600px at 15% -10%, rgba(0,132,209,.10), transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, rgba(167,139,250,.06), transparent 55%);
+    color:var(--text);
+    font-family:var(--font-display);
+    -webkit-font-smoothing:antialiased;
+    line-height:1.4;
+  }
+  :focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
+  img,svg{display:block;}
+  .tabular{font-variant-numeric:tabular-nums;font-family:var(--font-mono);}
+
+  /* ---------- page chrome (design-review shell, NOT in-game UI) ---------- */
+  .doc-header{
+    position:sticky;top:0;z-index:50;
+    background:rgba(5,8,13,.86);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--hairline);
+  }
+  .doc-header-inner{
+    max-width:1180px;margin:0 auto;padding:14px 24px;
+    display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;
+  }
+  .doc-title{display:flex;flex-direction:column;gap:2px;}
+  .doc-title .kicker{
+    font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--accent-2);
+  }
+  .doc-title h1{margin:0;font-size:16px;font-weight:700;letter-spacing:-.01em;}
+  .doc-title h1 span{color:var(--text-dim);font-weight:500;}
+
+  .jump-nav{display:flex;gap:4px;flex-wrap:wrap;}
+  .jump-nav a{
+    font-family:var(--font-mono);font-size:11.5px;letter-spacing:.02em;
+    color:var(--text-dim);text-decoration:none;
+    padding:7px 10px;border-radius:8px;border:1px solid transparent;
+    transition:background .15s, color .15s, border-color .15s;
+    white-space:nowrap;
+  }
+  .jump-nav a:hover{background:rgba(255,255,255,.06);color:var(--text);}
+  .jump-nav a b{color:var(--accent-2);font-weight:700;margin-right:5px;}
+  .jump-nav a.active{background:rgba(0,132,209,.16);border-color:rgba(0,132,209,.4);color:#fff;}
+
+  .brief{
+    max-width:1180px;margin:22px auto 0;padding:0 24px;
+    font-size:13.5px;color:var(--text-dim);max-width:74ch;
+  }
+  .brief strong{color:var(--text);}
+
+  main{max-width:1180px;margin:0 auto;padding:36px 24px 120px;display:flex;flex-direction:column;gap:64px;}
+
+  .screen{scroll-margin-top:80px;}
+  .screen-head{display:flex;align-items:baseline;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
+  .screen-letter{
+    font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--void);
+    background:var(--accent-2);border-radius:6px;width:26px;height:26px;
+    display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .screen-head h2{font-size:20px;margin:0;font-weight:700;letter-spacing:-.01em;}
+  .screen-head .sub{font-size:13px;color:var(--text-faint);}
+
+  /* ---------- the simulated game frame ---------- */
+  .frame{
+    position:relative;border-radius:18px;overflow:hidden;
+    background:
+      radial-gradient(1200px 500px at 20% -20%, rgba(63,169,245,.08), transparent 60%),
+      linear-gradient(160deg,#0d1420,#070b12 70%);
+    border:1px solid var(--ring-strong);
+    box-shadow:0 30px 70px -30px rgba(0,0,0,.7), inset 0 0 0 1px rgba(255,255,255,.02);
+    min-height:420px;
+  }
+  .frame-topbar{
+    display:flex;align-items:center;gap:8px;padding:9px 14px;
+    border-bottom:1px solid var(--hairline);background:rgba(0,0,0,.28);
+  }
+  .frame-topbar .dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.14);}
+  .frame-topbar .url{font-family:var(--font-mono);font-size:11px;color:var(--text-faint);}
+
+  /* ---------- caption / design-note strip (spec-sheet voice, deliberately distinct from in-game type) ---------- */
+  .note{
+    margin-top:14px;padding:14px 16px;border-radius:12px;
+    background:rgba(255,255,255,.03);border:1px solid var(--hairline);
+    font-size:13px;color:var(--text-dim);
+  }
+  .note b{color:var(--text);}
+  .note .label{
+    display:block;font-family:var(--font-mono);font-size:10.5px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--accent-2);margin-bottom:6px;
+  }
+
+  /* ============================================================
+     SCREEN A — map
+     ============================================================ */
+  .map-stage{position:relative;aspect-ratio:16/10.5;background:
+      linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px) 0 0/44px 44px,
+      linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px) 0 0/44px 44px,
+      radial-gradient(800px 420px at 30% 20%, rgba(0,132,209,.07), transparent 65%),
+      #0a121c;
+  }
+  .territory{position:absolute;transition:filter .15s;}
+  .territory:hover{filter:brightness(1.12);}
+  .territory .fill{position:absolute;inset:0;}
+  .territory .label{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    font-size:10.5px;font-weight:700;color:rgba(6,10,16,.78);
+    text-shadow:0 1px 0 rgba(255,255,255,.18);white-space:nowrap;
+    pointer-events:none;letter-spacing:.01em;
+  }
+  .fed-zone{position:absolute;border-radius:38% 42% 40% 44%/46% 40% 46% 42%;filter:blur(0);pointer-events:none;}
+  .fed-crest{
+    position:absolute;display:flex;align-items:center;gap:6px;
+    padding:4px 9px 4px 6px;border-radius:999px;
+    font-family:var(--font-mono);font-size:10.5px;font-weight:700;letter-spacing:.03em;
+    color:#0a0f16;box-shadow:0 6px 16px -6px rgba(0,0,0,.6);
+    white-space:nowrap;
+  }
+  .fed-crest svg{width:13px;height:13px;flex-shrink:0;}
+
+  .ally-tether{position:absolute;pointer-events:none;}
+
+  .map-legend{
+    position:absolute;right:14px;bottom:14px;width:250px;
+    background:var(--panel);border:1px solid var(--ring-strong);border-radius:12px;
+    padding:12px 13px;backdrop-filter:blur(6px);
+  }
+  .map-legend h4{margin:0 0 9px;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-faint);font-weight:700;}
+  .legend-row{display:flex;align-items:center;gap:9px;margin-bottom:8px;font-size:12px;color:var(--text-dim);}
+  .legend-row:last-child{margin-bottom:0;}
+  .legend-swatch{width:26px;height:16px;border-radius:4px;flex-shrink:0;position:relative;background:rgba(255,255,255,.06);}
+  .sw-none{border:1px solid rgba(255,255,255,.12);}
+  .sw-ally{border:1.5px solid var(--ally-line);}
+  .sw-fed{border:2.5px solid var(--fed-ridgeline);box-shadow:0 0 0 3px rgba(34,211,238,.15), 0 0 10px rgba(34,211,238,.35);}
+
+  .map-toprail{
+    position:absolute;left:14px;top:14px;display:flex;gap:8px;
+  }
+  .pill{
+    font-family:var(--font-mono);font-size:11px;padding:5px 10px;border-radius:999px;
+    background:rgba(10,14,20,.7);border:1px solid var(--ring-strong);color:var(--text-dim);
+    display:flex;align-items:center;gap:6px;
+  }
+  .pill .dotmark{width:6px;height:6px;border-radius:50%;}
+
+  /* ============================================================
+     SHARED HUD COMPONENT STYLES (mirrors real Lit component classes)
+     ============================================================ */
+  .hud-card{
+    background:var(--panel-2);backdrop-filter:blur(6px);border-radius:10px;
+    box-shadow:0 12px 30px -12px rgba(0,0,0,.55);
+  }
+  .actionable{
+    border-left:4px solid var(--sev-warn);padding:12px 14px;color:#fff;
+  }
+  .actionable .desc{font-size:14px;font-weight:600;margin:0 0 10px;}
+  .btn-row{display:flex;flex-wrap:wrap;gap:6px;}
+  .btn{
+    font-family:var(--font-display);font-size:12.5px;font-weight:600;
+    padding:6px 12px;border-radius:5px;border:none;cursor:default;color:#fff;
+    transition:filter .15s;
+  }
+  .btn:hover{filter:brightness(1.08);}
+  .btn-primary{background:#16a34a;}
+  .btn-primary:hover{background:#15803d;}
+  .btn-gray{background:#6b7280;}
+  .btn-gray:hover{background:#4b5563;}
+  .btn-info{background:#3b82f6;}
+  .btn-info:hover{background:#2563eb;}
+  .btn-fed{background:var(--fed-solidum);color:#1a1005;}
+
+  .founding-banner{
+    display:flex;gap:10px;align-items:flex-start;
+    background:linear-gradient(135deg, rgba(201,133,46,.22), rgba(201,133,46,.08));
+    border:1px solid rgba(201,133,46,.45);
+    border-radius:8px;padding:10px 12px;margin:0 0 12px;
+  }
+  .founding-banner svg{width:18px;height:18px;flex-shrink:0;margin-top:1px;color:var(--fed-solidum);}
+  .founding-banner .t{font-size:12.5px;font-weight:700;color:#f0c884;margin:0 0 2px;letter-spacing:.01em;}
+  .founding-banner .d{font-size:12.5px;color:#e4c294;margin:0;line-height:1.45;}
+
+  /* ============================================================
+     SCREEN B layout
+     ============================================================ */
+  .prompt-stack{padding:26px;display:flex;flex-direction:column;gap:16px;max-width:420px;margin:0 auto;}
+  .prompt-card{border-radius:10px;overflow:hidden;}
+  .prompt-tag{
+    font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--text-faint);margin-bottom:8px;display:flex;align-items:center;gap:8px;
+  }
+  .prompt-tag .line{flex:1;height:1px;background:var(--hairline);}
+
+  /* ============================================================
+     SCREEN C layout
+     ============================================================ */
+  .flow{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;padding:22px;}
+  @media (max-width:900px){.flow{grid-template-columns:1fr;}}
+  .flow-step{
+    background:var(--panel-3);border:1px solid var(--hairline);border-radius:12px;padding:16px;
+    display:flex;flex-direction:column;gap:10px;
+  }
+  .flow-step.disabled{opacity:.55;}
+  .step-num{
+    font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint);
+    display:flex;align-items:center;gap:6px;letter-spacing:.06em;text-transform:uppercase;
+  }
+  .step-title{font-size:13.5px;font-weight:700;}
+  .step-body{font-size:12.5px;color:var(--text-dim);line-height:1.5;}
+
+  .status-list{display:flex;flex-direction:column;gap:6px;}
+  .status-row{
+    display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;
+    background:rgba(255,255,255,.03);border:1px solid var(--hairline);
+  }
+  .status-row .swatch{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+  .status-row .name{font-size:12.5px;font-weight:600;flex:1;}
+  .status-row .state{font-family:var(--font-mono);font-size:10.5px;font-weight:700;letter-spacing:.03em;padding:2px 8px;border-radius:999px;}
+  .st-accepted{color:#0d2f16;background:var(--sev-success);}
+  .st-pending{color:#3a2f04;background:var(--sev-warn);}
+  .st-declined{color:#fff;background:rgba(248,113,113,.85);}
+  .st-sponsor{color:#062033;background:var(--sev-info);}
+
+  .fed-tag-chip{
+    display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);
+    font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+    background:var(--fed-solidum-soft);color:#f0c884;border:1px solid rgba(201,133,46,.5);
+    border-radius:999px;padding:3px 8px;
+  }
+  .fed-tag-chip svg{width:10px;height:10px;}
+
+  /* ============================================================
+     SCREEN D — roster + win-tracker
+     ============================================================ */
+  .roster-wrap{display:grid;grid-template-columns:1.15fr .85fr;gap:0;align-items:start;}
+  @media (max-width:820px){.roster-wrap{grid-template-columns:1fr;}}
+  .roster-main{padding:22px;border-right:1px solid var(--hairline);}
+  @media (max-width:820px){.roster-main{border-right:none;border-bottom:1px solid var(--hairline);}}
+  .roster-side{padding:22px;display:flex;flex-direction:column;gap:16px;}
+
+  .fed-heading{display:flex;align-items:center;gap:10px;margin-bottom:4px;}
+  .fed-heading .crest-badge{
+    width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+    background:var(--fed-solidum-soft);border:1px solid rgba(201,133,46,.5);
+  }
+  .fed-heading .crest-badge svg{width:18px;height:18px;color:var(--fed-solidum);}
+  .fed-heading h3{margin:0;font-size:16px;font-weight:700;}
+  .fed-heading .meta{font-size:11.5px;color:var(--text-faint);font-family:var(--font-mono);}
+
+  .member-row{
+    display:grid;grid-template-columns:auto 1fr auto auto;gap:12px;align-items:center;
+    padding:11px 4px;border-bottom:1px solid var(--hairline);
+  }
+  .member-row:last-child{border-bottom:none;}
+  .member-swatch{width:12px;height:12px;border-radius:4px;flex-shrink:0;}
+  .member-name{font-size:13.5px;font-weight:600;}
+  .member-since{font-size:11px;color:var(--text-faint);}
+  .member-pct{font-size:14px;font-weight:700;text-align:right;min-width:52px;}
+  .member-share{font-size:11px;color:var(--text-dim);text-align:right;min-width:70px;font-family:var(--font-mono);}
+
+  .meter-block{margin-top:8px;}
+  .meter-labels{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px;}
+  .meter-labels .l1{font-size:11.5px;color:var(--text-dim);}
+  .meter-labels .l2{font-size:13px;font-weight:700;font-family:var(--font-mono);}
+  .meter-track{
+    position:relative;height:22px;border-radius:6px;background:rgba(255,255,255,.05);
+    border:1px solid var(--ring-strong);overflow:hidden;
+  }
+  .meter-seg{position:absolute;top:0;bottom:0;left:0;}
+  .meter-threshold{
+    position:absolute;top:-4px;bottom:-4px;width:2px;background:#fff;opacity:.85;
+  }
+  .meter-threshold .tt{
+    position:absolute;top:-17px;right:-1px;font-family:var(--font-mono);font-size:9.5px;
+    color:var(--text-faint);white-space:nowrap;
+  }
+  .meter-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:9px;}
+  .meter-legend .item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-dim);}
+  .meter-legend .sw{width:9px;height:9px;border-radius:2px;}
+
+  .side-card{
+    background:rgba(255,255,255,.03);border:1px solid var(--hairline);border-radius:10px;padding:14px;
+  }
+  .side-card h4{margin:0 0 9px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-faint);font-weight:700;}
+  .kv{display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;border-bottom:1px dashed var(--hairline);}
+  .kv:last-child{border-bottom:none;}
+  .kv .k{color:var(--text-dim);}
+  .kv .v{font-weight:700;font-family:var(--font-mono);}
+
+  /* ============================================================
+     SCREEN E — events panel
+     ============================================================ */
+  .events-demo{padding:26px;display:flex;gap:22px;flex-wrap:wrap;}
+  .events-col{flex:1;min-width:320px;display:flex;flex-direction:column;gap:8px;}
+  .events-log{
+    background:var(--panel-2);border-radius:10px;max-height:230px;overflow:hidden;
+  }
+  .events-log table{width:100%;border-collapse:collapse;}
+  .events-log td{padding:7px 12px;font-size:12.5px;color:#e4e4e7;border-bottom:1px solid rgba(255,255,255,.04);}
+  .events-log tr:last-child td{border-bottom:none;}
+  .events-log .muted{color:var(--text-faint);}
+  .events-log .link{color:var(--sev-info);font-weight:600;}
+
+  .fracture-card{border-left:4px solid var(--sev-warn);}
+  .prune-card{border-left:4px solid var(--fed-ridgeline);}
+  .prune-card .desc{color:#a5f3fc;}
+
+  .roster-mini{
+    background:var(--panel-2);border-radius:10px;padding:14px;
+  }
+  .roster-mini h4{margin:0 0 4px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;}
+  .roster-mini .sub{font-size:11px;color:var(--text-faint);margin-bottom:10px;font-family:var(--font-mono);}
+  .mini-row{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12.5px;border-bottom:1px solid var(--hairline);}
+  .mini-row:last-child{border-bottom:none;}
+  .mini-row .sw{width:9px;height:9px;border-radius:3px;flex-shrink:0;}
+  .mini-row .n{flex:1;}
+  .mini-row.pruned{opacity:.4;text-decoration:line-through;}
+  .mini-row.pruned .n::after{
+    content:" — pruned";text-decoration:none;color:var(--sev-fail);font-size:10.5px;font-family:var(--font-mono);
+    display:inline;text-decoration:none;
+  }
+  .recompute-flash{
+    display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:10px;
+    color:#a5f3fc;background:rgba(34,211,238,.12);border:1px solid rgba(34,211,238,.35);
+    padding:2px 7px;border-radius:999px;margin-left:8px;
+  }
+
+  footer.doc-footer{
+    max-width:1180px;margin:0 auto;padding:0 24px 60px;color:var(--text-faint);font-size:12px;
+  }
+  footer.doc-footer a{color:var(--accent-2);}
+</style>
+</head>
+<body>
+
+<header class="doc-header">
+  <div class="doc-header-inner">
+    <div class="doc-title">
+      <span class="kicker">OpenFront.io — mod proposal</span>
+      <h1>Federations <span>— UI/UX mockup</span></h1>
+    </div>
+    <nav class="jump-nav" id="jumpNav">
+      <a href="#screen-a"><b>a</b>Map view</a>
+      <a href="#screen-b"><b>b</b>Renewal prompt</a>
+      <a href="#screen-c"><b>c</b>Join request</a>
+      <a href="#screen-d"><b>d</b>Roster &amp; win-tracker</a>
+      <a href="#screen-e"><b>e</b>Events panel</a>
+    </nav>
+  </div>
+</header>
+
+<p class="brief">
+  Federations are fluid, opt-in blocs built almost entirely on the existing bilateral
+  alliance system — <strong>no new request/accept UI</strong>. Two allies who complete
+  their first renewal found one automatically; anyone else joins by getting sponsored,
+  then having every current member independently accept a tagged alliance request.
+  Below: five screens covering founding, joining, the live map/roster/win-tracker state,
+  and a fracture event, styled against OpenFront's existing dark HUD components.
+</p>
+
+<main>
+
+  <!-- ============================================================ SCREEN A ============================================================ -->
+  <section class="screen" id="screen-a">
+    <div class="screen-head">
+      <span class="screen-letter">a</span>
+      <h2>Map view — three federations, one plain alliance</h2>
+      <span class="sub">grouping treatment at a glance</span>
+    </div>
+
+    <div class="frame">
+      <div class="frame-topbar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">openfront.io/game/9f2c… — turn 214</span></div>
+
+      <div class="map-stage">
+        <div class="map-toprail">
+          <span class="pill"><span class="dotmark" style="background:var(--fed-solidum)"></span>Solidum Compact · 3</span>
+          <span class="pill"><span class="dotmark" style="background:var(--fed-auroral)"></span>Auroral Concord · 2</span>
+          <span class="pill"><span class="dotmark" style="background:var(--fed-ridgeline)"></span>Ridgeline Accord · 4</span>
+        </div>
+
+        <!-- federation backing zones (rendered first, behind territories) -->
+        <div class="fed-zone" style="left:6%;top:14%;width:34%;height:58%;background:radial-gradient(ellipse at center, var(--fed-solidum-soft), transparent 70%);"></div>
+        <div class="fed-zone" style="left:58%;top:6%;width:20%;height:34%;background:radial-gradient(ellipse at center, var(--fed-auroral-soft), transparent 70%);"></div>
+        <div class="fed-zone" style="left:60%;top:30%;width:36%;height:44%;background:radial-gradient(ellipse at center, var(--fed-ridgeline-soft), transparent 70%);"></div>
+
+        <!-- plain-ally tether: thin static line, no shared zone -->
+        <svg class="ally-tether" width="100%" height="100%" viewBox="0 0 1000 460" preserveAspectRatio="none">
+          <line x1="245" y1="360" x2="360" y2="410" stroke="var(--ally-line)" stroke-width="2" stroke-dasharray="1 7" stroke-linecap="round"/>
+        </svg>
+
+        <!-- Solidum Compact: Kestrel, Ashgrove, Thornevale -->
+        <div class="territory" style="left:9%;top:16%;width:15%;height:24%;">
+          <div class="fill" style="background:#38bdf8;clip-path:polygon(15% 0,85% 5%,100% 45%,80% 100%,10% 92%,0 40%);border:2.5px solid var(--fed-solidum);box-shadow:0 0 0 1px rgba(0,0,0,.4);"></div>
+          <span class="label">Kestrel</span>
+        </div>
+        <div class="territory" style="left:21%;top:32%;width:14%;height:22%;">
+          <div class="fill" style="background:#4ade80;clip-path:polygon(10% 0,90% 10%,100% 55%,70% 100%,5% 85%,0 30%);border:2.5px solid var(--fed-solidum);"></div>
+          <span class="label">Ashgrove</span>
+        </div>
+        <div class="territory" style="left:8%;top:40%;width:13%;height:26%;">
+          <div class="fill" style="background:#fb7185;clip-path:polygon(20% 0,95% 15%,100% 60%,60% 100%,0 80%,5% 30%);border:2.5px solid var(--fed-solidum);"></div>
+          <span class="label">Thornevale</span>
+        </div>
+        <div class="fed-crest" style="left:11%;top:11%;background:var(--fed-solidum);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#1a1005" stroke-width="2.4"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V5l8-3z"/></svg>
+          Solidum Compact
+        </div>
+
+        <!-- plain allies, unaffiliated: Hallowmere + Drevanth -->
+        <div class="territory" style="left:23%;top:60%;width:10%;height:18%;">
+          <div class="fill" style="background:#eab308;clip-path:polygon(15% 0,90% 10%,100% 60%,60% 100%,0 70%);border:1.5px solid var(--ally-line);"></div>
+          <span class="label">Hallowmere</span>
+        </div>
+        <div class="territory" style="left:33%;top:70%;width:10%;height:17%;">
+          <div class="fill" style="background:#93c5fd;clip-path:polygon(10% 0,95% 5%,100% 55%,70% 100%,0 80%);border:1.5px solid var(--ally-line);"></div>
+          <span class="label">Drevanth</span>
+        </div>
+
+        <!-- no relation -->
+        <div class="territory" style="left:44%;top:58%;width:9%;height:15%;">
+          <div class="fill" style="background:#71717a;clip-path:polygon(20% 0,100% 15%,90% 90%,10% 100%,0 40%);border:1px solid rgba(255,255,255,.12);"></div>
+          <span class="label">Sable Coast</span>
+        </div>
+
+        <!-- Auroral Concord: Ironholt, Duskmere -->
+        <div class="territory" style="left:59%;top:9%;width:14%;height:20%;">
+          <div class="fill" style="background:#a855f7;clip-path:polygon(10% 0,90% 8%,100% 60%,60% 100%,0 70%);border:2.5px solid var(--fed-auroral);"></div>
+          <span class="label">Ironholt</span>
+        </div>
+        <div class="territory" style="left:69%;top:18%;width:12%;height:19%;">
+          <div class="fill" style="background:#f472b6;clip-path:polygon(15% 0,95% 12%,100% 65%,55% 100%,0 60%);border:2.5px solid var(--fed-auroral);"></div>
+          <span class="label">Duskmere</span>
+        </div>
+        <div class="fed-crest" style="left:61%;top:3%;background:var(--fed-auroral);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#1a1030" stroke-width="2.4"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V5l8-3z"/></svg>
+          Auroral Concord
+        </div>
+
+        <!-- Ridgeline Accord: Brackenfield, Ostwind, Calderum, Veyrath -->
+        <div class="territory" style="left:61%;top:38%;width:13%;height:20%;">
+          <div class="fill" style="background:#34d399;clip-path:polygon(10% 0,90% 10%,100% 55%,65% 100%,0 80%);border:2.5px solid var(--fed-ridgeline);"></div>
+          <span class="label">Brackenfield</span>
+        </div>
+        <div class="territory" style="left:73%;top:32%;width:12%;height:18%;">
+          <div class="fill" style="background:#fbbf24;clip-path:polygon(15% 0,95% 8%,100% 55%,60% 100%,0 65%);border:2.5px solid var(--fed-ridgeline);"></div>
+          <span class="label">Ostwind</span>
+        </div>
+        <div class="territory" style="left:63%;top:54%;width:14%;height:18%;">
+          <div class="fill" style="background:#60a5fa;clip-path:polygon(8% 0,92% 12%,100% 60%,65% 100%,0 75%);border:2.5px solid var(--fed-ridgeline);"></div>
+          <span class="label">Calderum</span>
+        </div>
+        <div class="territory" style="left:78%;top:44%;width:13%;height:18%;">
+          <div class="fill" style="background:#f97316;clip-path:polygon(12% 0,95% 15%,100% 60%,70% 100%,0 70%);border:2.5px solid var(--fed-ridgeline);"></div>
+          <span class="label">Veyrath</span>
+        </div>
+        <div class="fed-crest" style="left:64%;top:31%;background:var(--fed-ridgeline);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#052024" stroke-width="2.4"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V5l8-3z"/></svg>
+          Ridgeline Accord
+        </div>
+
+        <div class="map-legend">
+          <h4>Relationship treatment</h4>
+          <div class="legend-row"><span class="legend-swatch sw-none"></span>No relation — default 1px border</div>
+          <div class="legend-row"><span class="legend-swatch sw-ally"></span>Bilateral ally — thin slate border, own territory only</div>
+          <div class="legend-row"><span class="legend-swatch sw-fed"></span>Federation member — glowing accent border + tinted zone + crest</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">
+      <span class="label">Design rationale</span>
+      Each nation keeps its <b>own persistent identity color</b> — the same one used in
+      chat, the player list, and everywhere else — because federations are fluid and
+      recoloring a territory on every join/prune would fight the player's established
+      identity mid-game. Instead, federation membership is layered on top:
+      <b>SamRadiusPass</b> already merges overlapping ally SAM-range circles into one
+      outline via <code>AllianceClusters</code>' union-find, exactly the same
+      "many owners, one visible boundary" trick this reuses for territory borders —
+      a continuous glowing outline in the federation's accent color, a faint tinted
+      backing zone, and one crest per cluster. A plain bilateral ally that isn't
+      federated gets a much quieter signal: its own thin slate-colored border and,
+      where relevant, a dotted tether line — never the glow, the zone, or a crest.
+      That gap in intensity is the whole answer to "same federation" vs "just allied."
+    </div>
+  </section>
+
+  <!-- ============================================================ SCREEN B ============================================================ -->
+  <section class="screen" id="screen-b">
+    <div class="screen-head">
+      <span class="screen-letter">b</span>
+      <h2>Renewal prompt — the one-time founding notice</h2>
+      <span class="sub">extends <code>events-display.about_to_expire</code>, unchanged after the first time</span>
+    </div>
+
+    <div class="frame">
+      <div class="frame-topbar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">openfront.io/game/9f2c… — turn 118</span></div>
+
+      <div class="prompt-stack">
+        <div>
+          <div class="prompt-tag">First renewal between Kestrel &amp; Ashgrove<span class="line"></span></div>
+          <div class="hud-card prompt-card actionable">
+            <div class="founding-banner">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V5l8-3z"/></svg>
+              <div>
+                <p class="t">Renewing will also found a Federation with Ashgrove</p>
+                <p class="d">You'll share victory credit and a coalition win-tracker.
+                  Federations are fluid — either side can still let it lapse or break
+                  the underlying alliance later.</p>
+              </div>
+            </div>
+            <p class="desc">Your alliance with Ashgrove is about to expire.</p>
+            <div class="btn-row">
+              <button class="btn btn-gray">Focus</button>
+              <button class="btn btn-primary">Renew alliance</button>
+              <button class="btn btn-info">Ignore</button>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="prompt-tag">For comparison — a normal renewal (2nd+)<span class="line"></span></div>
+          <div class="hud-card prompt-card actionable" style="opacity:.92;">
+            <p class="desc">Your alliance with Brackenfield is about to expire.</p>
+            <div class="btn-row">
+              <button class="btn btn-gray">Focus</button>
+              <button class="btn btn-primary">Renew alliance</button>
+              <button class="btn btn-info">Ignore</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">
+      <span class="label">Design rationale</span>
+      This is the entire "founding" UI: one banner injected above the existing
+      <code>RENEW_ALLIANCE</code> actionable-event card, shown exactly once —
+      the first time two allies renew. It sits inside the same
+      <code>bg-gray-800/92 … border-l-4 border-yellow-400</code> card the game
+      already renders, uses the federation's own accent color so it doesn't
+      compete with the card's existing warn-yellow border, and disappears for
+      every renewal after. No new modal, no separate confirmation step — the
+      existing <b>Renew alliance</b> button does double duty.
+    </div>
+  </section>
+
+  <!-- ============================================================ SCREEN C ============================================================ -->
+  <section class="screen" id="screen-c">
+    <div class="screen-head">
+      <span class="screen-letter">c</span>
+      <h2>Joining an existing federation</h2>
+      <span class="sub">sponsor → Request Federation → per-member status</span>
+    </div>
+
+    <div class="frame">
+      <div class="frame-topbar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">openfront.io/game/9f2c… — turn 152 · Thornevale joining Solidum Compact</span></div>
+
+      <div class="flow">
+        <div class="flow-step">
+          <div class="step-num">① existing flow, unmodified</div>
+          <div class="step-title">Get sponsored</div>
+          <div class="step-body">
+            Thornevale sends an ordinary alliance request to Ashgrove, a current
+            Solidum Compact member. Ashgrove accepts — same accept/reject UI as
+            any other alliance.
+          </div>
+          <div class="status-list">
+            <div class="status-row">
+              <span class="swatch" style="background:#4ade80"></span>
+              <span class="name">Ashgrove</span>
+              <span class="state st-sponsor">Sponsor</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="step-num">② new action, appears once sponsored</div>
+          <div class="step-title">Request Federation</div>
+          <div class="step-body">
+            A new button appears on the Solidum Compact roster. Pressing it sends
+            a tagged alliance request — <span class="fed-tag-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V5l8-3z"/></svg>Federation request</span> —
+            to every <em>other</em> current member. Ashgrove already counts via the sponsor alliance.
+          </div>
+          <button class="btn btn-fed" style="align-self:flex-start;">Request Federation</button>
+        </div>
+
+        <div class="flow-step">
+          <div class="step-num">③ resolves independently</div>
+          <div class="step-title">Per-member status</div>
+          <div class="step-body">Each request is a normal accept/reject/timeout. Thornevale becomes a full member once every row reads Accepted.</div>
+          <div class="status-list">
+            <div class="status-row">
+              <span class="swatch" style="background:#4ade80"></span>
+              <span class="name">Ashgrove</span>
+              <span class="state st-sponsor">Sponsor</span>
+            </div>
+            <div class="status-row">
+              <span class="swatch" style="background:#38bdf8"></span>
+              <span class="name">Kestrel</span>
+              <span class="state st-accepted">Accepted</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:0 22px 22px;">
+        <div class="hud-card" style="padding:14px 16px;background:var(--panel-3);">
+          <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-faint);font-weight:700;margin-bottom:10px;">
+            A federation with more members mid-request — Ridgeline Accord considering a 5th
+          </div>
+          <div class="status-list">
+            <div class="status-row"><span class="swatch" style="background:#34d399"></span><span class="name">Brackenfield</span><span class="state st-sponsor">Sponsor</span></div>
+            <div class="status-row"><span class="swatch" style="background:#fbbf24"></span><span class="name">Ostwind</span><span class="state st-accepted">Accepted</span></div>
+            <div class="status-row"><span class="swatch" style="background:#60a5fa"></span><span class="name">Calderum</span><span class="state st-pending">Pending</span></div>
+            <div class="status-row"><span class="swatch" style="background:#f97316"></span><span class="name">Veyrath</span><span class="state st-declined">Declined</span></div>
+          </div>
+          <p style="font-size:12px;color:var(--text-faint);margin:10px 0 0;">
+            Veyrath's decline doesn't roll anything back — the newcomer just never links
+            to Veyrath. No group failure, no "almost in" state beyond this list.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">
+      <span class="label">Design rationale</span>
+      Step ① is deliberately drawn to look identical to today's alliance-request UI —
+      it <i>is</i> today's alliance-request UI. The only new surface is the status list,
+      styled after the existing alliance chip list in <code>PlayerPanel</code>
+      (<code>rounded-lg bg-zinc-800/70 ring-1 ring-zinc-700/60</code>), with a
+      per-row state pill so a requester can tell "still waiting" from "never happening"
+      without any modal or progress gate.
+    </div>
+  </section>
+
+  <!-- ============================================================ SCREEN D ============================================================ -->
+  <section class="screen" id="screen-d">
+    <div class="screen-head">
+      <span class="screen-letter">d</span>
+      <h2>Roster &amp; proportional win-tracker</h2>
+      <span class="sub">segmented meter, not a blended bar</span>
+    </div>
+
+    <div class="frame">
+      <div class="frame-topbar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">openfront.io/game/9f2c… — turn 214</span></div>
+
+      <div class="roster-wrap">
+        <div class="roster-main">
+          <div class="fed-heading">
+            <div class="crest-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V5l8-3z"/></svg></div>
+            <div>
+              <h3>The Solidum Compact</h3>
+              <div class="meta">3 members · founded turn 118</div>
+            </div>
+          </div>
+
+          <div style="margin-top:10px;">
+            <div class="member-row">
+              <span class="member-swatch" style="background:#38bdf8"></span>
+              <div>
+                <div class="member-name">Kestrel</div>
+                <div class="member-since">Founding member</div>
+              </div>
+              <div class="member-pct tabular">14.2%</div>
+              <div class="member-share">46.6% of federation</div>
+            </div>
+            <div class="member-row">
+              <span class="member-swatch" style="background:#4ade80"></span>
+              <div>
+                <div class="member-name">Ashgrove</div>
+                <div class="member-since">Founding member</div>
+              </div>
+              <div class="member-pct tabular">9.8%</div>
+              <div class="member-share">32.1% of federation</div>
+            </div>
+            <div class="member-row">
+              <span class="member-swatch" style="background:#fb7185"></span>
+              <div>
+                <div class="member-name">Thornevale</div>
+                <div class="member-since">Joined turn 152</div>
+              </div>
+              <div class="member-pct tabular">6.5%</div>
+              <div class="member-share">21.3% of federation</div>
+            </div>
+          </div>
+
+          <div class="meter-block">
+            <div class="meter-labels">
+              <span class="l1">Combined territory toward domination</span>
+              <span class="l2 tabular">30.5% <span style="color:var(--text-faint);font-weight:500;">/ 80%</span></span>
+            </div>
+            <div class="meter-track">
+              <div class="meter-seg" style="left:0;width:14.2%;background:#38bdf8;"></div>
+              <div class="meter-seg" style="left:14.2%;width:9.8%;background:#4ade80;"></div>
+              <div class="meter-seg" style="left:24%;width:6.5%;background:#fb7185;"></div>
+              <div class="meter-threshold" style="left:80%;"><span class="tt">80% win</span></div>
+            </div>
+            <div class="meter-legend">
+              <span class="item"><span class="sw" style="background:#38bdf8"></span>Kestrel 14.2%</span>
+              <span class="item"><span class="sw" style="background:#4ade80"></span>Ashgrove 9.8%</span>
+              <span class="item"><span class="sw" style="background:#fb7185"></span>Thornevale 6.5%</span>
+              <span class="item"><span class="sw" style="background:rgba(255,255,255,.12)"></span>Uncontrolled 49.5%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="roster-side">
+          <div class="side-card">
+            <h4>Federation stats</h4>
+            <div class="kv"><span class="k">Combined territory</span><span class="v">30.5%</span></div>
+            <div class="kv"><span class="k">Domination threshold</span><span class="v">80%</span></div>
+            <div class="kv"><span class="k">Remaining to win</span><span class="v">49.5%</span></div>
+            <div class="kv"><span class="k">Largest contributor</span><span class="v">Kestrel</span></div>
+          </div>
+          <div class="side-card">
+            <h4>Why segmented, not blended</h4>
+            <p style="font-size:12.5px;color:var(--text-dim);line-height:1.55;margin:0;">
+              Victory credit is proportional to contributed territory, not split
+              evenly — a single merged bar would hide that Kestrel is carrying
+              nearly half the coalition. Each member gets its own segment, sized
+              to its share, in its own identity color, so contribution reads at
+              the same glance as the total.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">
+      <span class="label">Design rationale</span>
+      Reuses the exact segmented-bar technique already in <code>ControlPanel</code>'s
+      troop meter (<code>absolute inset-y-0 … transform: translateX(x%) scaleX(y)</code>
+      stacking) — extended from two segments (owned/attacking) to N segments, one per
+      member, each in that member's own persistent color so the meter and the roster
+      list read as the same information at two zoom levels.
+    </div>
+  </section>
+
+  <!-- ============================================================ SCREEN E ============================================================ -->
+  <section class="screen" id="screen-e">
+    <div class="screen-head">
+      <span class="screen-letter">e</span>
+      <h2>Fracture — a broken link prunes a member</h2>
+      <span class="sub">existing events panel, no new modal</span>
+    </div>
+
+    <div class="frame">
+      <div class="frame-topbar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">openfront.io/game/9f2c… — turn 260 · Ridgeline Accord</span></div>
+
+      <div class="events-demo">
+        <div class="events-col">
+          <div class="prompt-tag">Events panel<span class="line"></span></div>
+
+          <div class="hud-card events-log">
+            <table>
+              <tr><td class="muted">Ridgeline Accord was founded by Brackenfield and Calderum.</td></tr>
+              <tr><td class="muted">Ostwind joined <span class="link">Ridgeline Accord</span>.</td></tr>
+              <tr><td class="muted">Veyrath joined <span class="link">Ridgeline Accord</span>.</td></tr>
+            </table>
+          </div>
+
+          <div class="hud-card fracture-card actionable" style="border-radius:10px;">
+            <p class="desc" style="color:#fde68a;">Your alliance with <span class="link" style="color:#fef3c7;">Ostwind</span> has expired.</p>
+          </div>
+
+          <div class="hud-card prune-card actionable" style="border-radius:10px;">
+            <p class="desc">
+              <span class="link" style="color:#a5f3fc;">Ostwind</span> has been pruned from Ridgeline Accord
+              — their alliance with Calderum lapsed.
+            </p>
+          </div>
+        </div>
+
+        <div class="events-col" style="max-width:300px;">
+          <div class="prompt-tag">Roster — live update<span class="line"></span></div>
+          <div class="roster-mini">
+            <h4>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--fed-ridgeline)" stroke-width="2.4"><path d="M12 2l8 3v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V5l8-3z"/></svg>
+              Ridgeline Accord
+              <span class="recompute-flash">recomputed</span>
+            </h4>
+            <div class="sub">3 members · was 4</div>
+            <div class="mini-row"><span class="sw" style="background:#34d399"></span><span class="n">Brackenfield</span><span class="tabular" style="color:var(--text-dim);">11.0%</span></div>
+            <div class="mini-row"><span class="sw" style="background:#60a5fa"></span><span class="n">Calderum</span><span class="tabular" style="color:var(--text-dim);">8.4%</span></div>
+            <div class="mini-row"><span class="sw" style="background:#f97316"></span><span class="n">Veyrath</span><span class="tabular" style="color:var(--text-dim);">7.1%</span></div>
+            <div class="mini-row pruned"><span class="sw" style="background:#fbbf24"></span><span class="n">Ostwind</span><span class="tabular" style="color:var(--text-faint);">5.9%</span></div>
+          </div>
+          <div class="meter-track" style="margin-top:2px;">
+            <div class="meter-seg" style="left:0;width:11%;background:#34d399;"></div>
+            <div class="meter-seg" style="left:11%;width:8.4%;background:#60a5fa;"></div>
+            <div class="meter-seg" style="left:19.4%;width:7.1%;background:#f97316;"></div>
+            <div class="meter-threshold" style="left:80%;"><span class="tt">80%</span></div>
+          </div>
+          <p style="font-size:11.5px;color:var(--text-faint);margin:8px 0 0;">
+            Combined territory drops from 32.4% to 26.5% the instant the link breaks —
+            Ostwind's segment simply disappears from the stack.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">
+      <span class="label">Design rationale</span>
+      Three plain rows in the same feed, nothing modal: the federation's own history
+      (founding, a join) sits in the low-key scrolling log exactly like any other
+      background event; the alliance expiry keeps its existing unmodified warn-yellow
+      treatment; the prune is a new but equally quiet entry, colored with the
+      federation's own accent so it's legible as "this affects your federation"
+      without implying urgency the game doesn't intend. The roster and meter update
+      in the same tick — Ostwind's row and segment simply go away, no separate
+      confirmation.
+    </div>
+  </section>
+
+</main>
+
+<footer class="doc-footer">
+  Mockup only — static HTML matching OpenFront's existing Tailwind tokens, component
+  patterns (<code>ActionableEvents</code>, <code>EventsDisplay</code>,
+  <code>PlayerPanel</code>, <code>ControlPanel</code>'s segmented meter) and the
+  <code>AllianceClusters</code>/<code>SamRadiusPass</code> border-union technique.
+  No game logic implemented.
+</footer>
+
+<script>
+  // Scroll-spy for the jump nav — purely presentational, no app logic.
+  var links = Array.prototype.slice.call(document.querySelectorAll('#jumpNav a'));
+  var sections = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+  function onScroll(){
+    var y = window.scrollY + 120;
+    var activeIdx = 0;
+    for (var i = 0; i < sections.length; i++){
+      if (sections[i] && sections[i].offsetTop <= y) activeIdx = i;
+    }
+    links.forEach(function(a, i){ a.classList.toggle('active', i === activeIdx); });
+  }
+  document.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+</script>
+
+</body>
+</html>
